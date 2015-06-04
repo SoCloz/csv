@@ -2,7 +2,9 @@ package csv
 
 import (
 	"bytes"
+	"database/sql"
 	"os"
+	"strconv"
 	"testing"
 )
 
@@ -22,6 +24,50 @@ func Example() {
 	// Name,Age
 	// Bob,42
 	// Joe,17
+}
+
+// Int is an even nuller nullable int64.
+// It does not consider zero values to be null.
+// It will decode to null, not zero, if null.
+type Int struct {
+	sql.NullInt64
+}
+
+func NewInt(i int64, valid bool) Int {
+	return Int{
+		NullInt64: sql.NullInt64{
+			Int64: i,
+			Valid: valid,
+		},
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+// It will encode a blank string if this Int is null.
+func (i Int) MarshalText() ([]byte, error) {
+	if !i.Valid {
+		return []byte{}, nil
+	}
+	return []byte(strconv.FormatInt(i.Int64, 10)), nil
+}
+
+func TestEncodeNullType(t *testing.T) {
+	v := []struct {
+		A string
+		B Int `csv:"Bis"`
+		C bool
+		d struct{}
+	}{
+		{A: "a", B: NewInt(1, true), C: true},
+		{A: `b"`, B: NewInt(2, true), C: false},
+		{A: `c,`, B: NewInt(3, true), C: true},
+	}
+	want := "A,Bis,C\n" +
+		"a,1,true\n" +
+		`"b""",2,false` + "\n" +
+		`"c,",3,true` + "\n"
+
+	testEncoding(t, v, want)
 }
 
 func TestEncodeSliceStructs(t *testing.T) {
