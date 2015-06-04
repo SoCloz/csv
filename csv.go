@@ -2,6 +2,7 @@
 package csv
 
 import (
+	"encoding"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -105,6 +106,10 @@ func getStructHeader(t reflect.Type, indexes []int) []string {
 	return h
 }
 
+var (
+	textMarshalerType = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
+)
+
 func structToStrings(s reflect.Value, indexes []int) []string {
 	rows := make([]string, len(indexes))
 	for _, i := range indexes {
@@ -118,7 +123,12 @@ func structToStrings(s reflect.Value, indexes []int) []string {
 		case reflect.Struct:
 			v := f.Interface()
 			if v != struct{}{} {
-				rows[i] = fmt.Sprintf("%v", v)
+				if f.CanInterface() && f.Type().Implements(textMarshalerType) {
+					text, _ := f.Interface().(encoding.TextMarshaler).MarshalText()
+					rows[i] = string(text)
+				} else {
+					rows[i] = fmt.Sprintf("%v", v)
+				}
 			}
 		default:
 			rows[i] = fmt.Sprintf("%v", f.Interface())
