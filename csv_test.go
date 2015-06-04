@@ -65,6 +65,24 @@ func TestEncodeEmptyStruct(t *testing.T) {
 	testEncoding(t, v, want)
 }
 
+type marshaler string
+
+func (m marshaler) MarshalText() ([]byte, error) {
+	return []byte("marshaled " + m), nil
+}
+
+func TestEncodeTextMarshaler(t *testing.T) {
+	v := []struct {
+		M marshaler
+	}{
+		{M: "test"},
+	}
+	want := "M\n" +
+		"marshaled test\n"
+
+	testEncoding(t, v, want)
+}
+
 func TestOptions(t *testing.T) {
 	v := []struct {
 		A string

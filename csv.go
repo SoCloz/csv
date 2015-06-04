@@ -2,6 +2,7 @@
 package csv
 
 import (
+	"encoding"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -109,19 +110,27 @@ func structToStrings(s reflect.Value, indexes []int) []string {
 	rows := make([]string, len(indexes))
 	for _, i := range indexes {
 		f := s.Field(i)
+		v := f.Interface()
+
+		if marshaler, ok := v.(encoding.TextMarshaler); ok {
+			if text, err := marshaler.MarshalText(); err == nil {
+				rows[i] = string(text)
+				continue
+			}
+		}
+
 		switch f.Kind() {
 		case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map,
 			reflect.Ptr, reflect.Slice:
 			if !f.IsNil() {
-				rows[i] = fmt.Sprintf("%v", f.Interface())
+				rows[i] = fmt.Sprintf("%v", v)
 			}
 		case reflect.Struct:
-			v := f.Interface()
 			if v != struct{}{} {
 				rows[i] = fmt.Sprintf("%v", v)
 			}
 		default:
-			rows[i] = fmt.Sprintf("%v", f.Interface())
+			rows[i] = fmt.Sprintf("%v", v)
 		}
 	}
 
